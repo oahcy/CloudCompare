@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1024</width>
+    <width>1057</width>
     <height>768</height>
    </rect>
   </property>
@@ -38,8 +38,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1024</width>
-     <height>21</height>
+     <width>1057</width>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -739,6 +739,8 @@ QTreeView::branch:open:has-children:has-siblings  {
    <addaction name="actionAddConstantSF"/>
    <addaction name="actionScalarFieldArithmetic"/>
    <addaction name="actionOpenColorScalesManager"/>
+   <addaction name="actionSnapCamera"/>
+   <addaction name="actionStartCapture"/>
   </widget>
   <widget class="QDockWidget" name="DockableProperties">
    <property name="minimumSize">
@@ -3135,6 +3137,24 @@ The active scalar field should have integer values.</string>
    </property>
    <property name="toolTip">
     <string>Add classification SF (shorcut to 'Add constant SF')</string>
+   </property>
+  </action>
+  <action name="actionSnapCamera">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/CC/images/dbCalibratedImageSymbol.png</normaloff>:/CC/images/dbCalibratedImageSymbol.png</iconset>
+   </property>
+   <property name="text">
+    <string>SnapCamera</string>
+   </property>
+  </action>
+  <action name="actionStartCapture">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/CC/images/monitor.svg</normaloff>:/CC/images/monitor.svg</iconset>
+   </property>
+   <property name="text">
+    <string>StartCapture</string>
    </property>
   </action>
  </widget>

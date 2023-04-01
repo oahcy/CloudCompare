@@ -168,6 +168,11 @@ public:
 
 	//! Updates the 'Properties' view
 	void updatePropertiesView();
+
+	void initCameraView();
+
+public slots:
+	void refreshCameraView(void* ptr);
 	
 private:
 	//! Creates a new 3D GL sub-window
@@ -440,6 +445,9 @@ private:
 	//! Creates a cloud with the (bounding-box) centers of all selected entities
 	void doActionCreateCloudFromEntCenters();
 
+	//custom
+	void doActionSnapCamera();
+
 	//! Creates a cloud with a single point
 	void createSinglePointCloud();
 	//! Creates a cloud from the clipboard (ASCII) data
@@ -626,6 +634,11 @@ private: //members
 	ccPointPairRegistrationDlg* m_pprDlg;
 	//! Primitive factory dialog
 	ccPrimitiveFactoryDlg* m_pfDlg;
+
+	ccGLWindow* m_leftView = nullptr;
+	ccGLWindow* m_rightView = nullptr;
+	ccHObject* newGroup = nullptr;
+	bool isSnapping = false;
 
 	/*** plugins ***/
 	//! Manages plugins - menus, toolbars, and the about dialog

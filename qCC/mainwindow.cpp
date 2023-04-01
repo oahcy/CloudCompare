@@ -131,6 +131,8 @@
 #include "db_tree/ccDBRoot.h"
 #include "pluginManager/ccPluginUIManager.h"
 
+#include "ccCameraMgr.h"
+
 //3D mouse handler
 #ifdef CC_3DXWARE_SUPPORT
 #include "cc3DMouseManager.h"
@@ -183,6 +185,17 @@ static QFileDialog::Options CCFileDialogOptions()
 	}
 	return dialogOptions;
 }
+
+void CaptureThread::run() {
+	while (!isExit) {
+		func();
+		QThread::msleep(100);
+	}
+}
+
+static CaptureThread s_captureThread;
+static QString s_filename;
+static QString s_snapFilename;
 
 MainWindow::MainWindow()
 	: m_UI( new Ui::MainWindow )
@@ -312,6 +325,8 @@ MainWindow::MainWindow()
 
 MainWindow::~MainWindow()
 {
+	s_captureThread.isExit = true;
+	s_captureThread.wait();
 	destroyInputDevices();
 
 	cancelPreviousPickingOperation(false); //just in case
@@ -780,6 +795,10 @@ void MainWindow::connectActions()
 	
 	//hidden
 	connect(m_UI->actionEnableVisualDebugTraces,	&QAction::triggered, this, &MainWindow::toggleVisualDebugTraces);
+
+	//custom
+	connect(m_UI->actionSnapCamera, &QAction::triggered, this, &MainWindow::doActionSnapCamera);
+	connect(m_UI->actionStartCapture, &QAction::triggered, this, &MainWindow::initCameraView);
 }
 
 void MainWindow::doActionColorize()
@@ -10463,6 +10482,97 @@ void MainWindow::updatePropertiesView()
 	{
 		m_ccRoot->updatePropertiesView();
 	}
+}
+
+void MainWindow::doActionSnapCamera() {
+	static int copyCounts = 0;
+	{
+		QMutexLocker ml(&s_captureThread.mMutex);
+		isSnapping = true;
+		QFileInfo fileInfo(s_filename);
+		QString filename(fileInfo.fileName());
+		s_snapFilename = QString("C:\\Users\\WFH012\\Downloads\\Snap%1snap_%2").arg(QDir::separator(), filename);
+		QFile::copy(s_filename, s_snapFilename);
+	}
+
+}
+
+void MainWindow::initCameraView() {
+	static int s_counts = 0;
+	auto subwinList = m_mdiArea->subWindowList();
+	while (subwinList.size() < 2) {
+		new3DView(true);
+		subwinList = m_mdiArea->subWindowList();
+	}
+	m_rightView = GLWindowFromWidget(subwinList[0]->widget());
+
+	m_leftView = GLWindowFromWidget(subwinList[1]->widget());
+	//addToDB(fileListOfOne, nullptr, lastWin);
+
+	QWidget* parentWin = this;
+
+	connect(&s_captureThread, SIGNAL(updateDb(void* )), this, SLOT(refreshCameraView(void*)));
+	s_captureThread.func = [this, parentWin]() {
+		CCVector3d loadCoordinatesShift(0, 0, 0);
+		s_counts += 1;
+		s_counts = s_counts % 120;
+		bool loadCoordinatesTransEnabled = false;
+
+		FileIOFilter::LoadParameters parameters;
+		{
+			parameters.alwaysDisplayLoadDialog = false;
+			parameters.shiftHandlingMode = ccGlobalShiftManager::DIALOG_IF_NECESSARY;
+			parameters._coordinatesShift = &loadCoordinatesShift;
+			parameters._coordinatesShiftEnabled = &loadCoordinatesTransEnabled;
+			parameters.parentWidget = parentWin;
+		}
+
+		bool normalsDisplayedByDefault = ccOptions::Instance().normalsDisplayedByDefault;
+		FileIOFilter::ResetSesionCounter();
+
+		CC_FILE_ERROR result = CC_FERR_NO_ERROR;
+		{
+			QMutexLocker ml(&s_captureThread.mMutex);
+			s_filename = QString("C:\\Users\\WFH012\\Downloads\\polyline%1.bin").arg(QString::number(s_counts % 2));
+			QStringList	fileListOfOne;
+			if (isSnapping) {
+				fileListOfOne.push_back(s_snapFilename);
+			}
+			else {
+				fileListOfOne.push_back(s_filename);
+			}
+			auto groupPtr = FileIOFilter::LoadFromFile(fileListOfOne[0], parameters, result, nullptr);
+			s_captureThread.triggerUpdate((void*)groupPtr);
+		}
+		
+		//QMetaObject::invokeMethod(parentWin, "refreshCameraView");
+	};
+	s_captureThread.start();
+
+	m_mdiArea->tileSubWindows();
+}
+
+void MainWindow::refreshCameraView(void* ptr) {
+	QMutexLocker ml(&s_captureThread.mMutex);
+	ccGLWindow* dest = m_rightView;
+	if (isSnapping) {
+		dest = m_leftView;
+	}
+	if (!isSnapping) {
+		if (newGroup) {
+			m_ccRoot->removeElement(newGroup);
+		}
+	}
+	auto tempGroup = (ccHObject*)ptr;
+
+	if (dest && ptr) {
+		tempGroup->setDisplay_recursive(dest);
+		addToDB(tempGroup, true, true, false);
+	}
+	if (!isSnapping) {
+		newGroup = tempGroup;
+	}
+	isSnapping = false;
 }
 
 void MainWindow::updateUIWithSelection()
