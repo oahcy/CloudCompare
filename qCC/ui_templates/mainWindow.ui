@@ -739,6 +739,7 @@ QTreeView::branch:open:has-children:has-siblings  {
    <addaction name="actionAddConstantSF"/>
    <addaction name="actionScalarFieldArithmetic"/>
    <addaction name="actionOpenColorScalesManager"/>
+   <addaction name="actionStartCameraMode"/>
   </widget>
   <widget class="QDockWidget" name="DockableProperties">
    <property name="minimumSize">
@@ -3135,6 +3136,18 @@ The active scalar field should have integer values.</string>
    </property>
    <property name="toolTip">
     <string>Add classification SF (shorcut to 'Add constant SF')</string>
+   </property>
+  </action>
+  <action name="actionStartCameraMode">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/CC/images/dbCalibratedImageSymbol.png</normaloff>:/CC/images/dbCalibratedImageSymbol.png</iconset>
+   </property>
+   <property name="text">
+    <string>StartCameraMode</string>
+   </property>
+   <property name="toolTip">
+    <string>start camera</string>
    </property>
   </action>
  </widget>

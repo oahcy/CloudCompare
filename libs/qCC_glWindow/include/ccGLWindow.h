@@ -65,8 +65,13 @@ using ccGLWindowParent = QWindow;
 using ccGLWindowParent = QOpenGLWidget;
 #endif
 
+interface iGlWinInterface {
+public:
+  virtual QWidget* getGlWin() = 0;
+};
+
 //! OpenGL 3D view
-class CCGLWINDOW_LIB_API ccGLWindow : public ccGLWindowParent, public ccGenericGLDisplay
+class CCGLWINDOW_LIB_API ccGLWindow : public ccGLWindowParent, public ccGenericGLDisplay, public iGlWinInterface
 {
 	Q_OBJECT
 
@@ -206,6 +211,10 @@ public:
 									bool append=false,
 									int displayMaxDelay_sec = 2,
 									MessageType type = CUSTOM_MESSAGE);
+
+	virtual QWidget* getGlWin() final {
+	  return this;
+	}
 
 	//! Activates sun light
 	virtual void setSunLight(bool state);
@@ -1436,11 +1445,15 @@ inline ccGLWindow* GLWindowFromWidget(QWidget* widget)
 		return myWidget->associatedWindow();
 	}
 #else
-	ccGLWindow* myWidget = qobject_cast<ccGLWindow*>(widget);
-	if (myWidget)
-	{
-		return myWidget;
-	}
+  iGlWinInterface* glInterface = dynamic_cast<iGlWinInterface*>(widget);
+  ccGLWindow* myWidget = nullptr;
+
+  if (glInterface) {
+	myWidget = qobject_cast<ccGLWindow*>(glInterface->getGlWin());
+  }
+  if (myWidget) {
+	return myWidget;
+  }
 #endif
 	else
 	{

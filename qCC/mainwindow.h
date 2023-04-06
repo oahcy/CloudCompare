@@ -173,6 +173,10 @@ private:
 	//! Creates a new 3D GL sub-window
 	ccGLWindow* new3DView( bool allowEntitySelection );
 
+	//! Create snap view
+	QWidget* newSnapView(bool allowEntitySelection);
+	QWidget* newCameraView(bool allowEntitySelection);
+
 	//! Zooms in (current 3D view)
 	void zoomIn();
 	//! Zooms out (current 3D view)
@@ -498,6 +502,13 @@ private:
 	void resizeEvent(QResizeEvent* event) override;
 	bool eventFilter(QObject *obj, QEvent *event) override;
 	void keyPressEvent(QKeyEvent *event) override;
+
+	//#sz# camera
+private:
+	void changedCameraMode();
+	void enterCameraMode();
+	void leaveCameraMode();
+	QList<QMdiSubWindow*> getGlWindowList();
 	
 	//! Makes the window including an entity zoom on it (helper)
 	void zoomOn(ccHObject* object);
@@ -630,6 +641,9 @@ private: //members
 	/*** plugins ***/
 	//! Manages plugins - menus, toolbars, and the about dialog
 	ccPluginUIManager	*m_pluginUIManager;
+
+	//#sz#
+	bool m_isInCameraMode = false;
 };
 
 #endif

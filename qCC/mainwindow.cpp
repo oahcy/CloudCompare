@@ -59,6 +59,8 @@
 //QCC_glWindow
 #include <ccGLWindow.h>
 #include <ccRenderingTools.h>
+#include <extSnapWindow.h>
+#include <extcamerawindow.h>
 
 //local includes
 #include "ccConsole.h"
@@ -780,6 +782,8 @@ void MainWindow::connectActions()
 	
 	//hidden
 	connect(m_UI->actionEnableVisualDebugTraces,	&QAction::triggered, this, &MainWindow::toggleVisualDebugTraces);
+	//#sz#
+	connect(m_UI->actionStartCameraMode, &QAction::triggered, this, &MainWindow::changedCameraMode);
 }
 
 void MainWindow::doActionColorize()
@@ -5885,6 +5889,203 @@ ccGLWindow* MainWindow::new3DView( bool allowEntitySelection )
 	viewWidget->update();
 
 	return view3D;
+}
+
+QWidget* MainWindow::newSnapView(bool allowEntitySelection) {
+  assert(m_ccRoot && m_mdiArea);
+
+  QWidget* viewWidget = nullptr;
+  ccGLWindow* view3D = nullptr;
+
+  bool stereoMode = QSurfaceFormat::defaultFormat().stereo();
+  QSurfaceFormat format = QSurfaceFormat::defaultFormat();
+  format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+  format.setStereo(stereoMode);
+  bool silentInitialization = false;
+  view3D = new ccGLWindow(&format, nullptr, silentInitialization);
+  viewWidget = new extSnapWindow(view3D, this);
+
+  if (!viewWidget || !view3D)
+  {
+	ccLog::Error(tr("Failed to create the 3D view"));
+	assert(false);
+	return nullptr;
+  }
+
+  //restore options
+  {
+	QSettings settings;
+	bool autoPickRotationCenter = settings.value(ccPS::AutoPickRotationCenter(), true).toBool();
+	view3D->setAutoPickPivotAtCenter(autoPickRotationCenter);
+  }
+
+  viewWidget->setMinimumSize(400, 300);
+
+  auto x = m_mdiArea->addSubWindow(viewWidget, Qt::FramelessWindowHint);
+  auto z = x->widget();
+  z;
+
+  if (allowEntitySelection)
+  {
+	connect(view3D, &ccGLWindow::entitySelectionChanged, this, [=](ccHObject* entity) {
+	  m_ccRoot->selectEntity(entity);
+	});
+
+	connect(view3D, &ccGLWindow::entitiesSelectionChanged, this, [=](std::unordered_set<int> entities) {
+	  m_ccRoot->selectEntities(entities);
+	});
+  }
+
+  //'echo' mode
+  connect(view3D, &ccGLWindow::mouseWheelRotated, this, &MainWindow::echoMouseWheelRotate);
+  connect(view3D, &ccGLWindow::viewMatRotated, this, &MainWindow::echoBaseViewMatRotation);
+  connect(view3D, &ccGLWindow::cameraPosChanged, this, &MainWindow::echoCameraPosChanged);
+  connect(view3D, &ccGLWindow::pivotPointChanged, this, &MainWindow::echoPivotPointChanged);
+
+  connect(view3D, &QObject::destroyed, this, &MainWindow::prepareWindowDeletion);
+  connect(view3D, &ccGLWindow::filesDropped, this, &MainWindow::addToDBAuto, Qt::QueuedConnection); //DGM: we don't want to block the 'dropEvent' method of ccGLWindow instances!
+  connect(view3D, &ccGLWindow::newLabel, this, &MainWindow::handleNewLabel);
+  connect(view3D, &ccGLWindow::exclusiveFullScreenToggled, this, &MainWindow::onExclusiveFullScreenToggled);
+
+  if (m_pickingHub)
+  {
+	//we must notify the picking hub as well if the window is destroyed
+	connect(view3D, &QObject::destroyed, m_pickingHub, &ccPickingHub::onActiveWindowDeleted);
+  }
+
+  view3D->setSceneDB(m_ccRoot->getRootEntity());
+  viewWidget->setAttribute(Qt::WA_DeleteOnClose);
+  m_ccRoot->updatePropertiesView();
+
+  QMainWindow::statusBar()->showMessage(tr("New 3D View"), 2000);
+
+  viewWidget->showMaximized();
+  viewWidget->update();
+
+  return viewWidget;
+}
+
+QWidget* MainWindow::newCameraView(bool allowEntitySelection) {
+  assert(m_ccRoot && m_mdiArea);
+
+  QWidget* viewWidget = nullptr;
+  ccGLWindow* view3D = nullptr;
+
+  bool stereoMode = QSurfaceFormat::defaultFormat().stereo();
+  QSurfaceFormat format = QSurfaceFormat::defaultFormat();
+  format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+  format.setStereo(stereoMode);
+  bool silentInitialization = false;
+  view3D = new ccGLWindow(&format, nullptr, silentInitialization);
+  viewWidget = new extCameraWindow(view3D, this);
+
+  if (!viewWidget || !view3D)
+  {
+	ccLog::Error(tr("Failed to create the 3D view"));
+	assert(false);
+	return nullptr;
+  }
+
+  //restore options
+  {
+	QSettings settings;
+	bool autoPickRotationCenter = settings.value(ccPS::AutoPickRotationCenter(), true).toBool();
+	view3D->setAutoPickPivotAtCenter(autoPickRotationCenter);
+  }
+
+  viewWidget->setMinimumSize(400, 300);
+
+  auto x = m_mdiArea->addSubWindow(viewWidget, Qt::FramelessWindowHint);
+  auto z = x->widget();
+  z;
+
+  if (allowEntitySelection)
+  {
+	connect(view3D, &ccGLWindow::entitySelectionChanged, this, [=](ccHObject* entity) {
+	  m_ccRoot->selectEntity(entity);
+	});
+
+	connect(view3D, &ccGLWindow::entitiesSelectionChanged, this, [=](std::unordered_set<int> entities) {
+	  m_ccRoot->selectEntities(entities);
+	});
+  }
+
+  //'echo' mode
+  connect(view3D, &ccGLWindow::mouseWheelRotated, this, &MainWindow::echoMouseWheelRotate);
+  connect(view3D, &ccGLWindow::viewMatRotated, this, &MainWindow::echoBaseViewMatRotation);
+  connect(view3D, &ccGLWindow::cameraPosChanged, this, &MainWindow::echoCameraPosChanged);
+  connect(view3D, &ccGLWindow::pivotPointChanged, this, &MainWindow::echoPivotPointChanged);
+
+  connect(view3D, &QObject::destroyed, this, &MainWindow::prepareWindowDeletion);
+  connect(view3D, &ccGLWindow::filesDropped, this, &MainWindow::addToDBAuto, Qt::QueuedConnection); //DGM: we don't want to block the 'dropEvent' method of ccGLWindow instances!
+  connect(view3D, &ccGLWindow::newLabel, this, &MainWindow::handleNewLabel);
+  connect(view3D, &ccGLWindow::exclusiveFullScreenToggled, this, &MainWindow::onExclusiveFullScreenToggled);
+
+  if (m_pickingHub)
+  {
+	//we must notify the picking hub as well if the window is destroyed
+	connect(view3D, &QObject::destroyed, m_pickingHub, &ccPickingHub::onActiveWindowDeleted);
+  }
+
+  view3D->setSceneDB(m_ccRoot->getRootEntity());
+  viewWidget->setAttribute(Qt::WA_DeleteOnClose);
+  m_ccRoot->updatePropertiesView();
+
+  QMainWindow::statusBar()->showMessage(tr("New 3D View"), 2000);
+
+  viewWidget->showMaximized();
+  viewWidget->update();
+
+  return viewWidget;
+}
+
+QList<QMdiSubWindow*> MainWindow::getGlWindowList() {
+  QList<QMdiSubWindow*> filterList;
+  auto glWindowList = m_mdiArea->subWindowList();
+  for (const auto& w : glWindowList) {
+	auto glw = qobject_cast<ccGLWindow*>(w->widget());
+	if (glw) {
+	  filterList.push_back(w);
+	}
+  }
+  return filterList;
+}
+
+void MainWindow::changedCameraMode() {
+  if (m_isInCameraMode) {
+	leaveCameraMode();
+  }
+  else {
+	enterCameraMode();
+  }
+  m_isInCameraMode = !m_isInCameraMode;
+  return;
+}
+
+void MainWindow::enterCameraMode() {
+  auto glWinList = getGlWindowList();
+  for (const auto& w : glWinList) {
+	w->hide();
+  }
+  auto snapViews = m_mdiArea->findChildren<extSnapWindow*>();
+  if (snapViews.empty()) {
+	newSnapView(true);
+  }
+  auto cameraViews = m_mdiArea->findChildren<extCameraWindow*>();
+  if (cameraViews.empty()) {
+	newCameraView(true);
+  }
+  m_mdiArea->tileSubWindows();
+  return;
+}
+
+void MainWindow::leaveCameraMode() {
+  auto glWinList = getGlWindowList();
+  for (const auto& w : glWinList) {
+	w->show();
+  }
+  m_mdiArea->cascadeSubWindows();
+  return;
 }
 
 void MainWindow::prepareWindowDeletion(QObject* glWindow)
